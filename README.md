@@ -1,4 +1,4 @@
-# 听障辅助AI眼镜Agent
+# Deaf_Helper - 听障辅助AI眼镜Agent
 
 针对听障人群的AI眼镜主动服务Agent，实时分析视频流并智能判断用户是否需要服务。
 
