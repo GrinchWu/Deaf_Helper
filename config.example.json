@@ -1,0 +1,31 @@
+{
+  "processor_config": {
+    "sample_rate": 1,
+    "max_fps": 30.0,
+    "skip_similar_frames": true,
+    "similarity_threshold": 0.95
+  },
+  "vllm_config": {
+    "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    "api_key": "YOUR_API_KEY_HERE",
+    "model": "qwen-omni-turbo",
+    "max_retries": 3,
+    "timeout": 30.0
+  },
+  "memory_config": {
+    "max_context_frames": 100,
+    "memory_threshold_mb": 100.0,
+    "auto_purge": true,
+    "persistence_path": null
+  },
+  "change_detection_config": {
+    "frame_diff_threshold": 0.05,
+    "scene_cut_threshold": 0.3,
+    "histogram_threshold": 0.7,
+    "min_interval_seconds": 1.0,
+    "max_interval_seconds": 10.0,
+    "motion_threshold": 0.02
+  },
+  "low_activity_threshold": 0.3,
+  "adaptive_sampling": true
+}
