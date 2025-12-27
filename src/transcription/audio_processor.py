@@ -35,6 +35,7 @@ class AudioProcessor:
     def extract_audio_from_video(self, video_path: str) -> Tuple[np.ndarray, int]:
         """
         从视频文件提取音频
+        优先使用moviepy，备选ffmpeg
         
         Args:
             video_path: 视频文件路径
@@ -42,39 +43,69 @@ class AudioProcessor:
         Returns:
             (音频数据, 采样率)
         """
+        # 方法1: 尝试使用moviepy
+        try:
+            from moviepy.editor import VideoFileClip
+            
+            clip = VideoFileClip(video_path)
+            if clip.audio is None:
+                logger.warning("Video has no audio track")
+                clip.close()
+                return np.array([], dtype=np.float32), self.config.sample_rate
+            
+            # 提取音频数据
+            audio = clip.audio
+            audio_data = audio.to_soundarray(fps=self.config.sample_rate)
+            
+            # 转换为单声道
+            if len(audio_data.shape) > 1:
+                audio_data = np.mean(audio_data, axis=1)
+            
+            audio_data = audio_data.astype(np.float32)
+            clip.close()
+            
+            logger.info(f"Extracted audio: {len(audio_data)} samples at {self.config.sample_rate}Hz")
+            return audio_data, self.config.sample_rate
+            
+        except ImportError:
+            logger.warning("moviepy not installed, trying ffmpeg...")
+        except Exception as e:
+            logger.warning(f"moviepy failed: {e}, trying ffmpeg...")
+        
+        # 方法2: 使用ffmpeg
         try:
             import subprocess
             import tempfile
             import os
             
-            # 使用ffmpeg提取音频
             with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as tmp:
                 tmp_path = tmp.name
             
             cmd = [
                 'ffmpeg', '-i', video_path,
-                '-vn',  # 不要视频
-                '-acodec', 'pcm_s16le',
+                '-vn', '-acodec', 'pcm_s16le',
                 '-ar', str(self.config.sample_rate),
                 '-ac', str(self.config.channels),
                 '-y', tmp_path
             ]
             
-            subprocess.run(cmd, capture_output=True, check=True)
+            result = subprocess.run(cmd, capture_output=True)
+            if result.returncode != 0:
+                raise Exception(f"ffmpeg error: {result.stderr.decode()}")
             
-            # 读取wav文件
             import wave
             with wave.open(tmp_path, 'rb') as wf:
                 frames = wf.readframes(wf.getnframes())
                 audio_data = np.frombuffer(frames, dtype=np.int16).astype(np.float32)
-                audio_data /= 32768.0  # 归一化到 [-1, 1]
+                audio_data /= 32768.0
             
             os.unlink(tmp_path)
             return audio_data, self.config.sample_rate
             
         except Exception as e:
             logger.error(f"Failed to extract audio: {e}")
-            # 返回空音频
+            logger.error("Please install moviepy: pip install moviepy")
+            logger.error("Or install ffmpeg: https://ffmpeg.org/download.html")
             return np.array([], dtype=np.float32), self.config.sample_rate
 
     async def process_audio_stream(

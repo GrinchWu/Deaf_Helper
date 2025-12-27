@@ -4,7 +4,8 @@ httpx>=0.25.0
 numpy>=1.24.0
 
 # Audio processing
-# Note: ffmpeg must be installed on system for audio extraction
+moviepy>=1.0.3
+# Note: moviepy is preferred, ffmpeg is optional fallback
 
 # Testing
 pytest>=7.4.0
