@@ -54,6 +54,20 @@ python -m src.main video.mp4 --api-key YOUR_API_KEY --output results.json
 - **社交语言转录文字**：会议室、餐厅等社交场景
 - **交通场景安全提醒**：街道行走、骑行、驾驶场景
 
+##
+# 1. SSH连接到远程服务器
+ssh -p 31801 root@connect.nmb1.seetacloud.com
+ZIDhXjYjkU4t
+# 2. 在服务器上启动WebSocket服务
+source ~/miniconda3/etc/profile.d/conda.sh && conda activate ezvsl
+cd /root/autodl-tmp
+python ws_server.py --port 8765
+# 2. 本地SSH端口转发
+ssh -p 31801 -L 8765:localhost:8765 root@connect.nmb1.seetacloud.com
+
+# 3. 启动前端服务
+python src/active_service/ws_frontend_server.py
+
 ## License
 
 MIT
