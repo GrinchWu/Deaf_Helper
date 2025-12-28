@@ -1,0 +1,28 @@
+{
+  "step": 1484,
+  "timestamp": 742.0,
+  "persons": [
+    {
+      "label": "person1",
+      "bbox": [
+        0,
+        215,
+        310,
+        476
+      ],
+      "confidence": 0.6157
+    },
+    {
+      "label": "person2",
+      "bbox": [
+        380,
+        131,
+        640,
+        478
+      ],
+      "confidence": 0.6014
+    }
+  ],
+  "speaker_id": "OUT_OF_FRAME",
+  "count": 2
+}

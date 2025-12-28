@@ -1,0 +1,48 @@
+{
+  "step": 1357,
+  "timestamp": 678.5,
+  "persons": [
+    {
+      "label": "person1",
+      "bbox": [
+        1,
+        124,
+        221,
+        479
+      ],
+      "confidence": 0.8032
+    },
+    {
+      "label": "person2",
+      "bbox": [
+        105,
+        301,
+        221,
+        479
+      ],
+      "confidence": 0.3477
+    },
+    {
+      "label": "person3",
+      "bbox": [
+        161,
+        305,
+        216,
+        367
+      ],
+      "confidence": 0.4433
+    },
+    {
+      "label": "person4",
+      "bbox": [
+        276,
+        136,
+        638,
+        480
+      ],
+      "confidence": 0.8568
+    }
+  ],
+  "speaker_id": "OUT_OF_FRAME",
+  "count": 4
+}

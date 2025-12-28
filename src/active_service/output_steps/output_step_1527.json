@@ -1,0 +1,28 @@
+{
+  "step": 1527,
+  "timestamp": 763.5,
+  "persons": [
+    {
+      "label": "person1",
+      "bbox": [
+        0,
+        150,
+        241,
+        476
+      ],
+      "confidence": 0.8875
+    },
+    {
+      "label": "person2",
+      "bbox": [
+        236,
+        121,
+        637,
+        475
+      ],
+      "confidence": 0.6682
+    }
+  ],
+  "speaker_id": "person2",
+  "count": 2
+}

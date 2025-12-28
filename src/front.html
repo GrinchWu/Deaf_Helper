@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>听障辅助转录系统</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        header {
+            text-align: center;
+            padding: 20px 0;
+            border-bottom: 1px solid #333;
+            margin-bottom: 20px;
+        }
+        header h1 {
+            color: #00d4ff;
+            font-size: 28px;
+        }
+        .status-bar {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-top: 10px;
+        }
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #666;
+        }
+        .status-dot.connected { background: #00ff88; }
+        .status-dot.disconnected { background: #ff4444; }
+        .status-dot.processing { background: #ffaa00; animation: pulse 1s infinite; }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 20px;
+        }
+        .video-section {
+            position: relative;
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        #videoCanvas {
+            width: 100%;
+            display: block;
+        }
+        .overlay-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        #overlayCanvas {
+            width: 100%;
+            height: 100%;
+        }
+        .tom-panel {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.85);
+            border: 1px solid #00d4ff;
+            border-radius: 10px;
+            padding: 15px;
+            max-width: 400px;
+            display: none;
+        }
+        .tom-panel.visible { display: block; }
+        .tom-panel h3 {
+            color: #00d4ff;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+        .tom-item {
+            margin: 8px 0;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+        .tom-item .label {
+            color: #888;
+            margin-right: 8px;
+        }
+        .tom-item .value { color: #fff; }
+        .tom-item.emotion .value { color: #ffaa00; }
+        .tom-item.intent .value { color: #00ff88; }
+        .tom-item.suggest .value { color: #ff88ff; }
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .panel {
+            background: #252540;
+            border-radius: 12px;
+            padding: 15px;
+        }
+        .panel h2 {
+            color: #00d4ff;
+            font-size: 16px;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #333;
+        }
+        .transcript-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .transcript-item {
+            padding: 10px;
+            margin: 8px 0;
+            background: #1a1a2e;
+            border-radius: 8px;
+            border-left: 3px solid #00d4ff;
+        }
+        .transcript-item.speaking {
+            border-left-color: #00ff88;
+            background: #1a2a1e;
+        }
+        .transcript-speaker {
+            color: #00d4ff;
+            font-weight: bold;
+            font-size: 12px;
+            margin-bottom: 4px;
+        }
+        .transcript-text {
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        .person-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .person-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px;
+            background: #1a1a2e;
+            border-radius: 8px;
+        }
+        .person-item.speaking {
+            background: #1a2a1e;
+            border: 1px solid #00ff88;
+        }
+        .person-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #00d4ff, #0088ff);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+        .person-info { flex: 1; }
+        .person-name { font-weight: bold; }
+        .person-conf {
+            font-size: 12px;
+            color: #888;
+        }
+        .speaking-indicator {
+            width: 20px;
+            height: 20px;
+        }
+        .speaking-indicator.active {
+            animation: speak 0.5s infinite;
+        }
+        @keyframes speak {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #00d4ff, #0088ff);
+            color: #fff;
+        }
+        .btn-primary:hover { transform: translateY(-2px); }
+        .btn-danger {
+            background: #ff4444;
+            color: #fff;
+        }
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #1a1a2e; }
+        ::-webkit-scrollbar-thumb {
+            background: #444;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎧 听障辅助转录系统</h1>
+            <div class="status-bar">
+                <div class="status-item">
+                    <div class="status-dot" id="wsStatus"></div>
+                    <span id="wsStatusText">未连接</span>
+                </div>
+                <div class="status-item">
+                    <div class="status-dot" id="remoteStatus"></div>
+                    <span id="remoteStatusText">远程服务</span>
+                </div>
+                <div class="status-item">
+                    <div class="status-dot" id="asrStatus"></div>
+                    <span id="asrStatusText">语音识别</span>
+                </div>
+            </div>
+        </header>
+        <div class="main-content">
+            <div class="video-section">
+                <canvas id="videoCanvas" width="1280" height="720"></canvas>
+                <div class="overlay-container">
+                    <canvas id="overlayCanvas" width="1280" height="720"></canvas>
+                </div>
+                <div class="tom-panel" id="tomPanel">
+                    <h3>🧠 ToM 心智分析</h3>
+                    <div class="tom-item emotion">
+                        <span class="label">情感:</span>
+                        <span class="value" id="tomEmotion">-</span>
+                    </div>
+                    <div class="tom-item intent">
+                        <span class="label">意图:</span>
+                        <span class="value" id="tomIntent">-</span>
+                    </div>
+                    <div class="tom-item">
+                        <span class="label">心理:</span>
+                        <span class="value" id="tomMental">-</span>
+                    </div>
+                    <div class="tom-item suggest">
+                        <span class="label">建议:</span>
+                        <span class="value" id="tomSuggest">-</span>
+                    </div>
+                </div>
+            </div>
+            <div class="sidebar">
+                <div class="panel">
+                    <h2>👥 检测到的人物</h2>
+                    <div class="person-list" id="personList">
+                        <div style="color:#666;text-align:center;padding:20px;">等待检测...</div>
+                    </div>
+                </div>
+                <div class="panel">
+                    <h2>📝 实时转录</h2>
+                    <div class="transcript-list" id="transcriptList">
+                        <div style="color:#666;text-align:center;padding:20px;">等待转录...</div>
+                    </div>
+                </div>
+                <div class="panel">
+                    <h2>⚙️ 控制</h2>
+                    <div class="controls">
+                        <button class="btn btn-primary" id="btnConnect">连接</button>
+                        <button class="btn btn-danger" id="btnDisconnect" disabled>断开</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+```
+
+<script>
+// ==================== 状态管理 ====================
+const state = {
+    ws: null,
+    connected: false,
+    persons: [],
+    currentSpeaker: null,
+    transcripts: [],
+    tomResult: null,
+    videoWidth: 1280,
+    videoHeight: 720
+};
+
+// ==================== DOM元素 ====================
+const videoCanvas = document.getElementById('videoCanvas');
+const overlayCanvas = document.getElementById('overlayCanvas');
+const videoCtx = videoCanvas.getContext('2d');
+const overlayCtx = overlayCanvas.getContext('2d');
+const personList = document.getElementById('personList');
+const transcriptList = document.getElementById('transcriptList');
+const tomPanel = document.getElementById('tomPanel');
+const btnConnect = document.getElementById('btnConnect');
+const btnDisconnect = document.getElementById('btnDisconnect');
+
+// ==================== WebSocket连接 ====================
+function connect() {
+    const wsUrl = 'ws://localhost:8766';  // 本地前端WebSocket端口
+    state.ws = new WebSocket(wsUrl);
+    
+    state.ws.onopen = () => {
+        state.connected = true;
+        updateStatus('wsStatus', 'connected', '已连接');
+        btnConnect.disabled = true;
+        btnDisconnect.disabled = false;
+        console.log('WebSocket已连接');
+    };
+    
+    state.ws.onclose = () => {
+        state.connected = false;
+        updateStatus('wsStatus', 'disconnected', '已断开');
+        btnConnect.disabled = false;
+        btnDisconnect.disabled = true;
+        console.log('WebSocket已断开');
+    };
+    
+    state.ws.onerror = (err) => {
+        console.error('WebSocket错误:', err);
+        updateStatus('wsStatus', 'disconnected', '连接错误');
+    };
+    
+    state.ws.onmessage = (event) => {
+        try {
+            const data = JSON.parse(event.data);
+            handleMessage(data);
+        } catch (e) {
+            console.error('解析消息失败:', e);
+        }
+    };
+}
+
+function disconnect() {
+    if (state.ws) {
+        state.ws.close();
+        state.ws = null;
+    }
+}
+
+// ==================== 消息处理 ====================
+function handleMessage(data) {
+    switch (data.type) {
+        case 'frame':
+            updateFrame(data);
+            break;
+        case 'detection':
+            updateDetection(data);
+            break;
+        case 'transcript':
+            addTranscript(data);
+            break;
+        case 'tom':
+            updateToM(data);
+            break;
+        case 'status':
+            updateSystemStatus(data);
+            break;
+    }
+}
+
+// ==================== 视频帧更新 ====================
+function updateFrame(data) {
+    if (!data.image) return;
+    
+    const img = new Image();
+    img.onload = () => {
+        state.videoWidth = img.width;
+        state.videoHeight = img.height;
+        videoCanvas.width = img.width;
+        videoCanvas.height = img.height;
+        overlayCanvas.width = img.width;
+        overlayCanvas.height = img.height;
+        videoCtx.drawImage(img, 0, 0);
+        drawOverlay();
+    };
+    img.src = 'data:image/jpeg;base64,' + data.image;
+}
+
+// ==================== 检测结果更新 ====================
+function updateDetection(data) {
+    state.persons = data.persons || [];
+    state.currentSpeaker = data.speaker_id;
+    
+    // 更新人物列表
+    renderPersonList();
+    
+    // 重绘覆盖层
+    drawOverlay();
+}
+
+// ==================== 绘制覆盖层（检测框+文字） ====================
+function drawOverlay() {
+    overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+    
+    const scaleX = overlayCanvas.width / state.videoWidth;
+    const scaleY = overlayCanvas.height / state.videoHeight;
+    
+    state.persons.forEach(person => {
+        const [x1, y1, x2, y2] = person.bbox;
+        const sx1 = x1 * scaleX;
+        const sy1 = y1 * scaleY;
+        const sx2 = x2 * scaleX;
+        const sy2 = y2 * scaleY;
+        const width = sx2 - sx1;
+        const height = sy2 - sy1;
+        
+        const isSpeaking = person.label === state.currentSpeaker;
+        
+        // 绘制检测框
+        overlayCtx.strokeStyle = isSpeaking ? '#00ff88' : '#00d4ff';
+        overlayCtx.lineWidth = isSpeaking ? 4 : 2;
+        overlayCtx.strokeRect(sx1, sy1, width, height);
+        
+        // 绘制标签背景
+        const labelText = person.label + (isSpeaking ? ' 🎤' : '');
+        overlayCtx.font = 'bold 16px Microsoft YaHei';
+        const textWidth = overlayCtx.measureText(labelText).width;
+        
+        overlayCtx.fillStyle = isSpeaking ? 'rgba(0, 255, 136, 0.9)' : 'rgba(0, 212, 255, 0.9)';
+        overlayCtx.fillRect(sx1, sy1 - 28, textWidth + 16, 26);
+        
+        // 绘制标签文字
+        overlayCtx.fillStyle = '#000';
+        overlayCtx.fillText(labelText, sx1 + 8, sy1 - 8);
+        
+        // 如果正在说话，显示最新转录文字
+        if (isSpeaking && state.transcripts.length > 0) {
+            const lastTranscript = state.transcripts[state.transcripts.length - 1];
+            if (lastTranscript.speaker === person.label) {
+                drawSpeechBubble(sx1 + width/2, sy1 - 40, lastTranscript.text);
+            }
+        }
+    });
+}
+
+// ==================== 绘制对话气泡 ====================
+function drawSpeechBubble(x, y, text) {
+    const maxWidth = 300;
+    const padding = 12;
+    const fontSize = 14;
+    
+    overlayCtx.font = fontSize + 'px Microsoft YaHei';
+    
+    // 文字换行处理
+    const words = text.split('');
+    const lines = [];
+    let currentLine = '';
+    
+    for (const char of words) {
+        const testLine = currentLine + char;
+        if (overlayCtx.measureText(testLine).width > maxWidth - padding * 2) {
+            lines.push(currentLine);
+            currentLine = char;
+        } else {
+            currentLine = testLine;
+        }
+    }
+    if (currentLine) lines.push(currentLine);
+    
+    // 限制最多3行
+    const displayLines = lines.slice(-3);
+    
+    const lineHeight = fontSize + 6;
+    const bubbleWidth = Math.min(maxWidth, Math.max(...displayLines.map(l => overlayCtx.measureText(l).width)) + padding * 2);
+    const bubbleHeight = displayLines.length * lineHeight + padding * 2;
+    
+    const bubbleX = x - bubbleWidth / 2;
+    const bubbleY = y - bubbleHeight - 10;
+    
+    // 绘制气泡背景
+    overlayCtx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+    overlayCtx.beginPath();
+    overlayCtx.roundRect(bubbleX, bubbleY, bubbleWidth, bubbleHeight, 8);
+    overlayCtx.fill();
+    
+    // 绘制气泡边框
+    overlayCtx.strokeStyle = '#00ff88';
+    overlayCtx.lineWidth = 2;
+    overlayCtx.stroke();
+    
+    // 绘制小三角
+    overlayCtx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+    overlayCtx.beginPath();
+    overlayCtx.moveTo(x - 8, bubbleY + bubbleHeight);
+    overlayCtx.lineTo(x, bubbleY + bubbleHeight + 10);
+    overlayCtx.lineTo(x + 8, bubbleY + bubbleHeight);
+    overlayCtx.fill();
+    
+    // 绘制文字
+    overlayCtx.fillStyle = '#fff';
+    displayLines.forEach((line, i) => {
+        overlayCtx.fillText(line, bubbleX + padding, bubbleY + padding + (i + 1) * lineHeight - 4);
+    });
+}
+
+// ==================== 转录更新 ====================
+function addTranscript(data) {
+    state.transcripts.push({
+        speaker: data.speaker,
+        text: data.text,
+        timestamp: Date.now()
+    });
+    
+    // 保留最近20条
+    if (state.transcripts.length > 20) {
+        state.transcripts = state.transcripts.slice(-20);
+    }
+    
+    renderTranscriptList();
+    drawOverlay();
+}
+
+// ==================== ToM更新 ====================
+function updateToM(data) {
+    state.tomResult = data;
+    
+    document.getElementById('tomEmotion').textContent = 
+        `${data.emotion} (${Math.round(data.confidence * 100)}%)`;
+    document.getElementById('tomIntent').textContent = data.intent || '-';
+    document.getElementById('tomMental').textContent = data.mental_state || '-';
+    document.getElementById('tomSuggest').textContent = data.suggested_response || '-';
+    
+    tomPanel.classList.add('visible');
+    
+    // 5秒后隐藏
+    setTimeout(() => {
+        tomPanel.classList.remove('visible');
+    }, 8000);
+}
+
+// ==================== 渲染人物列表 ====================
+function renderPersonList() {
+    if (state.persons.length === 0) {
+        personList.innerHTML = '<div style="color:#666;text-align:center;padding:20px;">等待检测...</div>';
+        return;
+    }
+    
+    personList.innerHTML = state.persons.map(person => {
+        const isSpeaking = person.label === state.currentSpeaker;
+        return `
+            <div class="person-item ${isSpeaking ? 'speaking' : ''}">
+                <div class="person-avatar">${person.label.replace('person', 'P')}</div>
+                <div class="person-info">
+                    <div class="person-name">${person.label}</div>
+                    <div class="person-conf">置信度: ${(person.confidence * 100).toFixed(1)}%</div>
+                </div>
+                ${isSpeaking ? '<div class="speaking-indicator active">🎤</div>' : ''}
+            </div>
+        `;
+    }).join('');
+}
+
+// ==================== 渲染转录列表 ====================
+function renderTranscriptList() {
+    if (state.transcripts.length === 0) {
+        transcriptList.innerHTML = '<div style="color:#666;text-align:center;padding:20px;">等待转录...</div>';
+        return;
+    }
+    
+    transcriptList.innerHTML = state.transcripts.slice(-10).map(t => {
+        const isSpeaking = t.speaker === state.currentSpeaker;
+        return `
+            <div class="transcript-item ${isSpeaking ? 'speaking' : ''}">
+                <div class="transcript-speaker">${t.speaker}</div>
+                <div class="transcript-text">${t.text}</div>
+            </div>
+        `;
+    }).join('');
+    
+    // 滚动到底部
+    transcriptList.scrollTop = transcriptList.scrollHeight;
+}
+
+// ==================== 状态更新 ====================
+function updateStatus(elementId, status, text) {
+    const dot = document.getElementById(elementId);
+    const textEl = document.getElementById(elementId + 'Text');
+    
+    dot.className = 'status-dot ' + status;
+    if (textEl) textEl.textContent = text;
+}
+
+function updateSystemStatus(data) {
+    if (data.remote !== undefined) {
+        updateStatus('remoteStatus', data.remote ? 'connected' : 'disconnected', 
+            data.remote ? '已连接' : '未连接');
+    }
+    if (data.asr !== undefined) {
+        updateStatus('asrStatus', data.asr ? 'processing' : 'disconnected',
+            data.asr ? '识别中' : '待机');
+    }
+}
+
+// ==================== 事件绑定 ====================
+btnConnect.addEventListener('click', connect);
+btnDisconnect.addEventListener('click', disconnect);
+
+// 页面加载后自动连接
+window.addEventListener('load', () => {
+    setTimeout(connect, 500);
+});
+</script>
+</body>
+</html>
